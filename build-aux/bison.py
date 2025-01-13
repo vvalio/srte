@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 '''This script runs bison and preps the correct folders in the build directory, since Meson can't do that.'''
 from os import mkdir
-from os.path import join, isabs, isfile
+from os.path import join, isabs, isdir
 from subprocess import Popen, PIPE
 from typing import List
 from sys import stderr, argv
@@ -48,8 +48,8 @@ def _check_cmd(cmd: str) -> None:
 
 def _begin() -> None:
     _check_cmd('bison')
-    if not isfile(join(DIR, 'build.ninja')):
-        raise ValueError(f'Not a build directory: {DIR}: no file build.ninja')
+    if not isdir(join(DIR, 'meson-logs')):
+        raise ValueError(f'Not a build directory: {DIR}: no meson-logs folder')
 
     bison_cmd_path = which('bison')
     _prep_build_dir(DIR)
