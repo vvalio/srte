@@ -67,7 +67,10 @@ std::string token_buf::to_string() const {
 
 tok_type yylex(srte_parser::parser::value_type *value, srte_parser::parser::location_type *location, token_buf &tbuf) {
     if (tbuf.index >= (int)tbuf.tokens.size()) {
-        *location = tbuf.tokens.back()->loc;
+        if (!tbuf.tokens.empty()) {
+            *location = tbuf.tokens.back()->loc;
+        }
+
         return tok_type::YYEOF;
     }
 
