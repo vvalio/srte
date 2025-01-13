@@ -273,6 +273,7 @@ std::variant<token_buf *, std::vector<fast_scanner::error>> fast_scanner::run() 
     if (_errors.empty()) {
         return _buf;
     } else {
+        delete _buf;
         return _errors;
     }
 }
