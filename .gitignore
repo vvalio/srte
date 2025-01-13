@@ -1,3 +1,4 @@
-assembler/parser/*.gen.[ch]
+assembler/parser/srte-asm-parser.*pp
+assembler/parser/location.hh
 build
 .cache
