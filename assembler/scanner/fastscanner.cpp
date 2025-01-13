@@ -45,6 +45,7 @@ token_buf::token_buf() { tokens = std::vector<token *>(); }
 
 token_buf::~token_buf() {
     for (auto t : tokens) {
+        t->val.destroy<std::string>();
         delete t;
     }
 }
@@ -85,7 +86,7 @@ fast_scanner::fast_scanner(const std::string &src, const std::string &fname) {
     this->_buf = new token_buf();
 }
 
-fast_scanner::~fast_scanner() { delete this->_buf; }
+fast_scanner::~fast_scanner() { /* token_buf used in the parser */ }
 
 void fast_scanner::push_token(tok_type t, std::string lit) {
     _buf->add(token::create(t, loc_type(nullptr, _line, _column), lit.c_str()));
