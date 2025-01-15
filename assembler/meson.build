@@ -1,6 +1,7 @@
 sources = [
     'main.cpp',
     'ast.cpp',
+    'astprint.cpp',
     'numparse.cpp',
     'scanner/fastscanner.cpp',
     'parser/srte-asm-parser.cpp',

@@ -5,6 +5,7 @@
 %param {token_buf &tbuf}
 %parse-param {parser_drv &driver}
 %parse-param {const std::string &filename}
+%parse-param {parser_private &privd} // only way to make a class member in bison
 %locations
 
 %code requires {
@@ -12,6 +13,7 @@
 #include "ast.hpp"
 #include "type.hpp"
 #include "drv/drv.hpp"
+#include "drv/parser-private.hpp"
 #include <cstdint>
 
 class token_buf;
@@ -80,6 +82,11 @@ void srte_parser::parser::error(const location& l, const std::string& msg) {
     driver.add_error(parse_error(msg, l));
 }
 
+void warning(srte_parser::parser *p, const location &l, const std::string& msg) {
+    std::cerr << "WARN: " << msg << "\n";
+    std::cerr << "At: " << l << "\n";
+}
+
 static std::uint8_t parse_byte(srte_parser::parser *p, const std::string &d, location l) {
     bool ofw = false,
         err = false;
@@ -93,25 +100,42 @@ static std::uint8_t parse_byte(srte_parser::parser *p, const std::string &d, loc
     return result;
 }
 
+static std::uint64_t parse_int(srte_parser::parser *p, location l, const std::string &d, int base) {
+    bool ofw = false,
+        err = false;
+    const std::uint64_t result = parse_native(d.c_str(), base, 64, ofw, err);
+    if (ofw) {
+        p->error(l, "Integer value too large!");
+    } else if (err) {
+        fatal(l, "Value token was unparsable");
+    }
+
+    return result;
+}
+
 #define PB(d, l) parse_byte(this, d, l)
+#define PLI(l, d, b) parse_int(this, l, d, b)
 #define B_LOC(rp) std::shared_ptr(get_loc(rp, filename))
 #define BASIC(t) new rt_type_basic(t)
-    
+#define WARN(rp, msg) warning(this, rp, msg)
+#define CLM() privd.mods = 0
+
 %}
 
 %type <std::shared_ptr<version_decl>> version_statement
 %type <std::vector<std::shared_ptr<global_var>>> global_vars
+%type <std::shared_ptr<global_var>> global_var
 %type <std::string> name
-
+%type <std::shared_ptr<value_base>> value
 %type <std::shared_ptr<type_id>> type
 %type <rt_type_basic *> builtin_type
 
 %%
 
 program:
-    version_statement global_vars {
+    version_statement global_vars end_of_stmt {
         auto as_unit = new assembly_unit(filename);
-        for (auto gv : $global_vars) {
+        for (auto gv : $2) {
             as_unit->push_constant(gv);
         }
 
@@ -122,27 +146,51 @@ program:
 
 version_statement:
     /* empty */ { $$ = nullptr; }
-    | DECL_KW_VERSION V_HEX V_HEX V_HEX end_of_stmt 
+    | DECL_KW_VERSION V_HEX V_HEX V_HEX end_of_stmt
     {
         $$ = std::make_shared<version_decl>(B_LOC(@$), PB($2, @2), PB($3, @3), PB($4, @4)); 
     }
     ;
 
-global_vars:
-    /* empty */ { $$ = {}; }
-    | global_vars DECL_KW_GLOBAL modifiers name COLON type end_of_stmt 
+global_vars: { $$ = {}; }
+    | global_vars global_var end_of_stmt
     {
-        auto gvar = std::make_shared<global_var>(B_LOC(@$), 0, $name, $type, nullptr);
-        $$.push_back(gvar);
+        $$.push_back($2);
+        $$.insert($$.end(), $1.begin(), $1.end());
     }
+    ;
 
-    | global_vars DECL_KW_GLOBAL modifiers name COLON type EQUALS value end_of_stmt
+global_var:
+    DECL_KW_GLOBAL modifiers name COLON type
+    {
+        $$ = std::make_shared<global_var>(B_LOC(@$), privd.mods, $name, $type, nullptr);
+        CLM();
+    }
+    | DECL_KW_GLOBAL modifiers name COLON type EQUALS value
+    {
+        $$ = std::make_shared<global_var>(B_LOC(@$), privd.mods, $name, $type, $value);
+        CLM();
+    }
     ;
 
 modifiers:
     /* empty */
     | modifiers KW_CONST
+    {
+        if ((privd.mods & global_var::MOD_CONST) != 0) {
+            WARN(@$, "Modifier 'const' already present");
+        } else {
+            privd.mods |= global_var::MOD_CONST;
+        }
+    }
     | modifiers KW_STATIC
+    {
+        if ((privd.mods & global_var::MOD_STATIC) != 0) {
+            WARN(@$, "Modifier 'static' already present");
+        } else {
+            privd.mods |= global_var::MOD_STATIC;
+        }
+    }
     ;
 
 type:
@@ -176,12 +224,24 @@ builtin_type:
     ;
 
 value:
-    V_DEC |
-    V_BIN |
-    V_HEX |
-    V_STR |
-    array_literal |
-    address_of
+    V_DEC 
+    {
+        $$ = std::make_shared<int_value>(B_LOC(@$), $1, PLI(@$, $1, 10), int_value::format::Dec);
+    }
+    | V_BIN
+    {
+        $$ = std::make_shared<int_value>(B_LOC(@$), $1, PLI(@$, $1, 2), int_value::format::Bin);
+    }
+    | V_HEX
+    {
+        $$ = std::make_shared<int_value>(B_LOC(@$), $1, PLI(@$, $1, 16), int_value::format::Hex);
+    }
+    | V_STR
+    {
+        $$ = std::make_shared<str_value>(B_LOC(@$), $1, str_value::format::Utf8, std::vector<unsigned char>($1.begin(), $1.end()));
+    }
+    //| array_literal
+    //| address_of
     ;
 
 address_of:
