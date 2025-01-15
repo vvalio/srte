@@ -116,9 +116,10 @@ static std::uint64_t parse_int(srte_parser::parser *p, location l, const std::st
 #define PB(d, l) parse_byte(this, d, l)
 #define PLI(l, d, b) parse_int(this, l, d, b)
 #define B_LOC(rp) std::shared_ptr(get_loc(rp, filename))
-#define BASIC(t) new rt_type_basic(t)
 #define WARN(rp, msg) warning(this, rp, msg)
 #define CLM() privd.mods = 0
+
+#define BASIC(t) std::make_shared<rt_type_basic>(t)
 
 %}
 
@@ -128,7 +129,9 @@ static std::uint64_t parse_int(srte_parser::parser *p, location l, const std::st
 %type <std::string> name
 %type <std::shared_ptr<value_base>> value
 %type <std::shared_ptr<type_id>> type
-%type <rt_type_basic *> builtin_type
+%type <std::shared_ptr<rt_type_base>> any_type
+%type <std::shared_ptr<rt_type_basic>> builtin_type
+%type <std::shared_ptr<rt_type_ref>> reference_type
 
 %%
 
@@ -194,13 +197,22 @@ modifiers:
     ;
 
 type:
-    builtin_type { $$ = std::make_shared<type_id>(B_LOC(@$), std::shared_ptr<rt_type_base>($1)); }
-    //| reference_type { $$ = $1; }
+    any_type
+    {
+        $$ = std::make_shared<type_id>(B_LOC(@$), $1);
+    }    
+
+any_type:
+    builtin_type { $$ = $1; }
+    | reference_type { $$ = $1; }
     //| array_type { $$ = $1; }
     ;
 
 reference_type:
-    AMP type
+    AMP any_type
+    {
+        $$ = std::make_shared<rt_type_ref>($2);
+    }
     ;
 
 array_type:

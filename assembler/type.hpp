@@ -99,6 +99,8 @@ class rt_type_ref final : public rt_type_base {
     std::shared_ptr<rt_type_base> _inner;
 
   public:
+    rt_type_ref(std::shared_ptr<rt_type_base> inner) : rt_type_base(rt_type_kind::Reference), _inner(inner) {}
+
     inline std::shared_ptr<rt_type_base> get_inner() { return _inner; }
     std::string to_string() override { return "Reference: &" + _inner->to_string(); }
 };
