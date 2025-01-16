@@ -32,6 +32,9 @@ srte_parser::parser::token_type yylex(srte_parser::parser::value_type *value, sr
 %token KW_STATIC "static"
 %token KW_CONST "const"
 %token KW_FUNC "func"
+%token KW_UTF8
+%token KW_UTF16
+%token KW_UTF32
 
 %token<rt_type_basic *> TYPE_I8
 %token<rt_type_basic *> TYPE_I16
@@ -140,6 +143,7 @@ static std::uint64_t parse_int(srte_parser::parser *p, location l, const std::st
 %type <std::shared_ptr<rt_type_base>> return_type
 %type <std::vector<std::shared_ptr<rt_type_base>>> param_types
 %type <std::shared_ptr<rt_type_array>> array_type
+%type <str_value::format> str_encoding_specifier
 
 %%
 
@@ -293,12 +297,30 @@ value:
     {
         $$ = $1;
     }
-    | V_STR
+    | str_encoding_specifier V_STR
     {
-        $$ = std::make_shared<str_value>(B_LOC(@$), $1, str_value::format::Utf8, std::vector<unsigned char>($1.begin(), $1.end()));
+        $$ = std::make_shared<str_value>(B_LOC(@$), $2, $1, std::vector<unsigned char>($2.begin(), $2.end()));
     }
     //| array_literal
     //| address_of
+    ;
+
+str_encoding_specifier:
+    {
+        $$ = str_value::format::Utf8;
+    }
+    | KW_UTF8
+    {
+        $$ = str_value::format::Utf8;
+    }
+    | KW_UTF16
+    {
+        $$ = str_value::format::Utf16;
+    }
+    | KW_UTF32
+    {
+        $$ = str_value::format::Utf32;
+    }
     ;
 
 num_value:

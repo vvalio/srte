@@ -135,7 +135,7 @@ void fast_scanner::scan_str() {
             next(); // eat the final "
         }
 
-        push_token(tok_type::V_STR, '"' + sr.str() + '"');
+        push_token(tok_type::V_STR, sr.str());
     }
 }
 
@@ -159,8 +159,8 @@ void fast_scanner::scan_bin_number() {
     next();
     const char b = next(); // 'B' or 'b'
 
-    std::stringstream sr("0");
-    sr << b;
+    std::stringstream sr;
+    sr << "0" << b;
 
     while (peek() == '0' || peek() == '1') {
         sr << next();
@@ -197,7 +197,8 @@ static const std::unordered_map<std::string, tok_type> keywords = {
     {"i32", tok_type::TYPE_I32},   {"u32", tok_type::TYPE_U32},     {"i64", tok_type::TYPE_I64},
     {"u64", tok_type::TYPE_U64},   {"i128", tok_type::TYPE_I128},   {"u128", tok_type::TYPE_U128},
     {"bool", tok_type::TYPE_BOOL}, {"void", tok_type::TYPE_VOID},   {"str", tok_type::TYPE_STR},
-    {"func", tok_type::KW_FUNC},   {"_", tok_type::UNDERSCORE},
+    {"func", tok_type::KW_FUNC},   {"_", tok_type::UNDERSCORE},     {"utf8", tok_type::KW_UTF8},
+    {"utf16", tok_type::KW_UTF16}, {"utf32", tok_type::KW_UTF32},
 };
 
 void fast_scanner::scan_id_or_kw(bool allow_string_id) {
