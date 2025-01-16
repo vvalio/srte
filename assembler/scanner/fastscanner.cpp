@@ -197,6 +197,7 @@ static const std::unordered_map<std::string, tok_type> keywords = {
     {"i32", tok_type::TYPE_I32},   {"u32", tok_type::TYPE_U32},     {"i64", tok_type::TYPE_I64},
     {"u64", tok_type::TYPE_U64},   {"i128", tok_type::TYPE_I128},   {"u128", tok_type::TYPE_U128},
     {"bool", tok_type::TYPE_BOOL}, {"void", tok_type::TYPE_VOID},   {"str", tok_type::TYPE_STR},
+    {"func", tok_type::KW_FUNC},   {"_", tok_type::UNDERSCORE},
 };
 
 void fast_scanner::scan_id_or_kw(bool allow_string_id) {
@@ -234,6 +235,10 @@ void fast_scanner::step() {
             next();
             scan_start_of_decl_kw();
             break;
+        case ',':
+            next();
+            push_token(tok_type::COMMA, ",");
+            break;
         case '\n':
             eat_newlines();
             push_token(tok_type::NEWLINES, "\n");
@@ -245,6 +250,22 @@ void fast_scanner::step() {
         case '=':
             next();
             push_token(tok_type::EQUALS, "=");
+            break;
+        case '[':
+            next();
+            push_token(tok_type::LBRACKET, "[");
+            break;
+        case ']':
+            next();
+            push_token(tok_type::RBRACKET, "]");
+            break;
+        case '-':
+            if (match("->")) {
+                push_token(tok_type::RET_ARROW, "->");
+            } else {
+                goto fail;
+            }
+
             break;
 
         case ' ':
@@ -259,6 +280,7 @@ void fast_scanner::step() {
             } else if (std::isdigit(c)) {
                 scan_number();
             } else {
+            fail:
                 add_error_here(std::string("Unexpected token: ") + c);
                 next();
             }

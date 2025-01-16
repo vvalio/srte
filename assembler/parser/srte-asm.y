@@ -31,6 +31,7 @@ srte_parser::parser::token_type yylex(srte_parser::parser::value_type *value, sr
 
 %token KW_STATIC "static"
 %token KW_CONST "const"
+%token KW_FUNC "func"
 
 %token<rt_type_basic *> TYPE_I8
 %token<rt_type_basic *> TYPE_I16
@@ -59,6 +60,8 @@ srte_parser::parser::token_type yylex(srte_parser::parser::value_type *value, sr
 %token COLON
 %token EQUALS
 %token NEWLINES
+%token UNDERSCORE
+%token RET_ARROW
 %token AMP
 
 %{
@@ -128,10 +131,15 @@ static std::uint64_t parse_int(srte_parser::parser *p, location l, const std::st
 %type <std::shared_ptr<global_var>> global_var
 %type <std::string> name
 %type <std::shared_ptr<value_base>> value
+%type <std::shared_ptr<int_value>> num_value
 %type <std::shared_ptr<type_id>> type
 %type <std::shared_ptr<rt_type_base>> any_type
 %type <std::shared_ptr<rt_type_basic>> builtin_type
 %type <std::shared_ptr<rt_type_ref>> reference_type
+%type <std::shared_ptr<rt_type_function>> function_type
+%type <std::shared_ptr<rt_type_base>> return_type
+%type <std::vector<std::shared_ptr<rt_type_base>>> param_types
+%type <std::shared_ptr<rt_type_array>> array_type
 
 %%
 
@@ -158,8 +166,8 @@ version_statement:
 global_vars: { $$ = {}; }
     | global_vars global_var end_of_stmt
     {
-        $$.push_back($2);
         $$.insert($$.end(), $1.begin(), $1.end());
+        $$.push_back($2);
     }
     ;
 
@@ -205,7 +213,8 @@ type:
 any_type:
     builtin_type { $$ = $1; }
     | reference_type { $$ = $1; }
-    //| array_type { $$ = $1; }
+    | function_type { $$ = $1; }
+    | array_type { $$ = $1; }
     ;
 
 reference_type:
@@ -216,8 +225,52 @@ reference_type:
     ;
 
 array_type:
-    LBRACKET V_DEC COLON type RBRACKET
+    LBRACKET num_value COLON any_type RBRACKET
+    {
+        auto capacity = $2->get_val();
+        if (capacity > UINT32_MAX) {
+            error(@$, "Integer value out of range for array capacity");
+            capacity = 0;
+        }
+
+        $$ = std::make_shared<rt_type_array>($4, (std::uint32_t) capacity);
+    }
     ;
+
+function_type:
+    KW_FUNC param_types RET_ARROW return_type
+    {
+        $$ = std::make_shared<rt_type_function>($4, $2);
+    }
+    ;
+
+param_types:
+    {
+        $$ = {};
+    }
+    | any_type
+    {
+        $$.push_back($1);
+    }
+    | param_types COMMA any_type
+    {
+        $$.insert($$.end(), $1.begin(), $1.end());
+        $$.push_back($3);
+    }
+    ;
+
+return_type:
+    {
+        $$ = nullptr;
+    }
+    | UNDERSCORE
+    {
+        $$ = nullptr;
+    }
+    | any_type
+    {
+        $$ = $1;
+    }
 
 builtin_type:
     TYPE_I8     { $$ = BASIC(rt_type_kind::I8); }
@@ -236,6 +289,19 @@ builtin_type:
     ;
 
 value:
+    num_value
+    {
+        $$ = $1;
+    }
+    | V_STR
+    {
+        $$ = std::make_shared<str_value>(B_LOC(@$), $1, str_value::format::Utf8, std::vector<unsigned char>($1.begin(), $1.end()));
+    }
+    //| array_literal
+    //| address_of
+    ;
+
+num_value:
     V_DEC 
     {
         $$ = std::make_shared<int_value>(B_LOC(@$), $1, PLI(@$, $1, 10), int_value::format::Dec);
@@ -248,12 +314,6 @@ value:
     {
         $$ = std::make_shared<int_value>(B_LOC(@$), $1, PLI(@$, $1, 16), int_value::format::Hex);
     }
-    | V_STR
-    {
-        $$ = std::make_shared<str_value>(B_LOC(@$), $1, str_value::format::Utf8, std::vector<unsigned char>($1.begin(), $1.end()));
-    }
-    //| array_literal
-    //| address_of
     ;
 
 address_of:

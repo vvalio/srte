@@ -4,7 +4,7 @@
 #include <iostream>
 
 int main(int argc, char *argv[]) {
-    std::cout << "Testing scanner\n";
+    std::cout << "Ready\n";
 
     std::string line;
     std::getline(std::cin, line, static_cast<char>(EOF));
@@ -28,8 +28,7 @@ int main(int argc, char *argv[]) {
     srte_parser::parser p(*tbuf, drv, "<input>", ppr);
     const auto status = p.parse();
 
-    std::cout << status << "\n";
-    if (status != 0) {
+    if (!drv.get_errors().empty()) {
         for (std::vector<parse_error>::size_type i = 0; i < drv.get_errors().size(); i++) {
             std::cout << i << ": " << drv.get_errors()[i].message << "\n";
         }

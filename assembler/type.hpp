@@ -1,6 +1,7 @@
 // Type representation used by the AST & others
 #pragma once
 
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -28,6 +29,8 @@ enum class rt_type_kind {
     Function,
     // Reference to a type, represented by rt_type_ref
     Reference,
+    // Array of n length of a type
+    Array,
 };
 
 // Any runtime type, base class. Subclasses implement concrete types.
@@ -76,6 +79,9 @@ class rt_type_function final : public rt_type_base {
     std::vector<std::shared_ptr<rt_type_base>> _params;
 
   public:
+    rt_type_function(std::shared_ptr<rt_type_base> return_type, std::vector<std::shared_ptr<rt_type_base>> params)
+        : rt_type_base(rt_type_kind::Function), _return_type(return_type), _params(params) {}
+
     std::string to_string() override {
         std::stringstream sr;
         sr << "function(";
@@ -102,4 +108,16 @@ class rt_type_ref final : public rt_type_base {
 
     inline std::shared_ptr<rt_type_base> get_inner() { return _inner; }
     std::string to_string() override { return "&" + _inner->to_string(); }
+};
+
+class rt_type_array final : public rt_type_base {
+  private:
+    std::shared_ptr<rt_type_base> _inner;
+    std::uint32_t _capacity;
+
+  public:
+    rt_type_array(std::shared_ptr<rt_type_base> inner, std::uint32_t capacity)
+        : rt_type_base(rt_type_kind::Array), _inner(inner), _capacity(capacity) {}
+
+    std::string to_string() override { return "[" + std::to_string(_capacity) + ":" + _inner->to_string() + "]"; }
 };
