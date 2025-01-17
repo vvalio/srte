@@ -23,7 +23,7 @@ std::shared_ptr<rt_type_base> function_def::get_exported_type() {
         param_types.push_back(p->get_param_type()->get_rt_type());
     }
 
-    return std::make_shared<rt_type_function>(_return_type, param_types);
+    return std::make_shared<rt_type_function>(_return_type->get_rt_type(), param_types);
 }
 
 std::vector<std::shared_ptr<ast_base>> function_def::get_children() { return {}; }
