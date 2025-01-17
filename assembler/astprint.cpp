@@ -57,12 +57,11 @@ void str_value::print(int indentC, std::ostream &ost) {
 
 void global_var::print(int indentC, std::ostream &ost) {
     auto indent = std::string(indentC, ' ');
-    const std::bitset<32> bs_flags(_flags);
     ost << indent << "Global variable declaration:\n";
 
     indent = std::string(indentC += 4, ' ');
     ost << indent << "Name: " << _name << "\n";
-    ost << indent << "Flags: " << bs_flags << "\n";
+    ost << indent << "Flags: " << std::bitset<32>(_flags) << "\n";
     _type->print(indentC, ost);
 
     ost << indent << "Value:\n";
@@ -86,4 +85,31 @@ void assembly_unit::print(int indentC, std::ostream &ost) {
     for (auto &c : _consts) {
         c->print(indentC + 4, ost);
     }
+}
+
+void function_param::print(int indentC, std::ostream &ost) {
+    auto indent = std::string(indentC, ' ');
+    ost << indent << "Function parameter:\n";
+
+    indent = std::string(indentC += 4, ' ');
+    ost << indent << "Index: " << _param_index << "\n";
+    ost << indent << "Flags: " << std::bitset<32>(_flags);
+    ost << indent << "Type:\n";
+    _type->print(indentC + 4, ost);
+}
+
+void function_def::print(int indentC, std::ostream &ost) {
+    auto indent = std::string(indentC, ' ');
+    ost << indent << "Function definition:\n";
+
+    indent = std::string(indentC += 4, ' ');
+    ost << indent << "Name: " << _name << "\n";
+    ost << indent << "Flags: " << std::bitset<32>(_flags) << "\n";
+    ost << indent << "Parameters:\n";
+    for (auto &p : _params) {
+        p->print(indentC, ost);
+    }
+
+    ost << indent << "Return type:\n";
+    _return_type->print(indentC, ost);
 }

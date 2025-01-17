@@ -30,6 +30,8 @@ enum class ast_type {
     GlobalVariableDeclaration,
     TypeId,
     Value,
+    FunctionDef,
+    FunctionParameter,
 };
 
 // Base class for all AST nodes.
@@ -81,6 +83,8 @@ class type_id : public ast_base {
     ast_type get_type() override { return ast_type::TypeId; }
     std::vector<std::shared_ptr<ast_base>> get_children() override { return {}; }
     void print(int indent = 4, std::ostream &stream = std::cout) override;
+
+    inline std::shared_ptr<rt_type_base> get_rt_type() { return _type; }
 };
 
 class named_base : public ast_base {
@@ -88,7 +92,7 @@ class named_base : public ast_base {
     named_base(std::shared_ptr<ast_location> l) : ast_base(l) {}
 
     virtual std::string get_exported_symbol() = 0;
-    virtual std::shared_ptr<type_id> get_type_id() = 0;
+    virtual std::shared_ptr<rt_type_base> get_exported_type() = 0;
 };
 
 class value_base : public ast_base {
@@ -163,13 +167,58 @@ class global_var : public named_base {
     std::string get_exported_symbol() override { return _name; }
     std::shared_ptr<type_id> get_constant_type() { return _type; }
     std::shared_ptr<value_base> get_value() { return _value; }
-    std::shared_ptr<type_id> get_type_id() override { return _type; }
+    std::shared_ptr<rt_type_base> get_exported_type() override { return _type->get_rt_type(); }
     ast_type get_type() override { return ast_type::GlobalVariableDeclaration; }
     std::vector<std::shared_ptr<ast_base>> get_children() override { return {_type, _value}; }
     void print(int indent = 4, std::ostream &ostream = std::cout) override;
 
     static inline constexpr const std::uint32_t MOD_CONST = 1 << 0;
     static inline constexpr const std::uint32_t MOD_STATIC = 1 << 1;
+};
+
+class function_param final : public ast_base {
+  private:
+    std::shared_ptr<type_id> _type;
+    std::uint32_t _param_index;
+    std::uint32_t _flags;
+
+  public:
+    function_param(std::shared_ptr<ast_location> loc, std::shared_ptr<type_id> type, std::uint32_t param_index,
+                   std::uint32_t flags)
+        : ast_base(loc), _type(type), _param_index(param_index), _flags(flags) {}
+
+    ast_type get_type() override { return ast_type::FunctionParameter; }
+    std::vector<std::shared_ptr<ast_base>> get_children() override { return {}; }
+    void print(int indent = 4, std::ostream &stream = std::cout) override;
+
+    inline std::shared_ptr<type_id> get_param_type() { return _type; }
+    inline std::uint32_t get_param_index() { return _param_index; }
+    inline std::uint32_t get_flags() { return _flags; }
+};
+
+class function_def final : public named_base {
+  private:
+    std::uint32_t _flags;
+    std::string _name;
+    std::shared_ptr<type_id> _return_type;
+    std::vector<std::shared_ptr<function_param>> _params;
+
+  public:
+    function_def(std::shared_ptr<ast_location> loc, std::uint32_t flags, const std::string &name,
+                 std::shared_ptr<type_id> return_type, std::vector<std::shared_ptr<function_param>> params)
+        : named_base(loc), _flags(flags), _name(name), _return_type(return_type), _params(params) {}
+
+    std::shared_ptr<rt_type_base> get_exported_type() override;
+    std::vector<std::shared_ptr<ast_base>> get_children() override;
+    void print(int indent = 4, std::ostream &ost = std::cout) override;
+
+    std::string get_exported_symbol() override { return _name; }
+    ast_type get_type() override { return ast_type::FunctionDef; }
+
+    inline std::uint32_t get_flags() { return _flags; }
+    inline std::string get_name() { return _name; }
+    inline std::shared_ptr<type_id> get_return_type() { return _return_type; }
+    inline std::vector<std::shared_ptr<function_param>> get_params() { return _params; }
 };
 
 class assembly_unit final : public ast_base {

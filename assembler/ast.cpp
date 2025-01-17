@@ -1,5 +1,6 @@
 #include "ast.hpp"
 #include "parser/srte-asm-parser.hpp"
+#include "type.hpp"
 #include <memory>
 #include <string>
 
@@ -15,6 +16,17 @@ std::string ast_location::to_string() {
 }
 
 ast_base::ast_base(const ast_base &c) { _location = c._location; }
+
+std::shared_ptr<rt_type_base> function_def::get_exported_type() {
+    std::vector<std::shared_ptr<rt_type_base>> param_types;
+    for (auto &p : _params) {
+        param_types.push_back(p->get_param_type()->get_rt_type());
+    }
+
+    return std::make_shared<rt_type_function>(_return_type, param_types);
+}
+
+std::vector<std::shared_ptr<ast_base>> function_def::get_children() { return {}; }
 
 std::vector<std::shared_ptr<ast_base>> assembly_unit::get_children() {
     std::vector<std::shared_ptr<ast_base>> result(_consts.size());
