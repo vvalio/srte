@@ -36,19 +36,19 @@ srte_parser::parser::token_type yylex(srte_parser::parser::value_type *value, sr
 %token KW_UTF16
 %token KW_UTF32
 
-%token<rt_type_basic *> TYPE_I8
-%token<rt_type_basic *> TYPE_I16
-%token<rt_type_basic *> TYPE_I32
-%token<rt_type_basic *> TYPE_I64
-%token<rt_type_basic *> TYPE_I128
-%token<rt_type_basic *> TYPE_U8
-%token<rt_type_basic *> TYPE_U16
-%token<rt_type_basic *> TYPE_U32
-%token<rt_type_basic *> TYPE_U64
-%token<rt_type_basic *> TYPE_U128
-%token<rt_type_basic *> TYPE_BOOL
-%token<rt_type_basic *> TYPE_VOID
-%token<rt_type_basic *> TYPE_STR
+%token TYPE_I8
+%token TYPE_I16
+%token TYPE_I32
+%token TYPE_I64
+%token TYPE_I128
+%token TYPE_U8
+%token TYPE_U16
+%token TYPE_U32
+%token TYPE_U64
+%token TYPE_U128
+%token TYPE_BOOL
+%token TYPE_VOID
+%token TYPE_STR
 
 %token<std::string> V_DEC
 %token<std::string> V_HEX
