@@ -99,18 +99,18 @@ class named_base : public ast_base {
     virtual std::shared_ptr<rt_type_base> get_exported_type() = 0;
 };
 
-class value_base : public ast_base {
+class literal_base : public ast_base {
   private:
     std::string _vstr;
 
   public:
-    value_base(std::shared_ptr<ast_location> l, const std::string &vstr) : ast_base(l), _vstr(vstr) {}
+    literal_base(std::shared_ptr<ast_location> l, const std::string &vstr) : ast_base(l), _vstr(vstr) {}
 
     inline std::string get_vstr() { return _vstr; }
     ast_type get_type() override final { return ast_type::Value; }
 };
 
-class int_value : public value_base {
+class int_literal : public literal_base {
   public:
     enum class format {
         Hex,
@@ -123,8 +123,8 @@ class int_value : public value_base {
     format _fmt;
 
   public:
-    int_value(std::shared_ptr<ast_location> l, const std::string &vstr, std::uint64_t val, format fmt)
-        : value_base(l, vstr), _val(val), _fmt(fmt) {}
+    int_literal(std::shared_ptr<ast_location> l, const std::string &vstr, std::uint64_t val, format fmt)
+        : literal_base(l, vstr), _val(val), _fmt(fmt) {}
 
     inline std::uint64_t get_val() { return _val; }
     inline format get_fmt() { return _fmt; }
@@ -132,23 +132,23 @@ class int_value : public value_base {
     void print(int indent = 4, std::ostream &ost = std::cout) override;
 };
 
-class str_value : public value_base {
+class str_literal : public literal_base {
   public:
-    enum class format {
+    enum class encoding {
         Utf8,
         Utf16,
         Utf32,
     };
 
   private:
-    format _fmt;
+    encoding _fmt;
     std::vector<unsigned char> _data;
 
   public:
-    str_value(std::shared_ptr<ast_location> l, const std::string &vstr, format fmt, std::vector<unsigned char> data)
-        : value_base(l, vstr), _fmt(fmt), _data(data) {}
+    str_literal(std::shared_ptr<ast_location> l, const std::string &vstr, encoding fmt, std::vector<unsigned char> data)
+        : literal_base(l, vstr), _fmt(fmt), _data(data) {}
 
-    inline format get_fmt() { return _fmt; }
+    inline encoding get_encoding() { return _fmt; }
     inline std::vector<unsigned char> get_data() { return _data; }
     std::vector<std::shared_ptr<ast_base>> get_children() override { return {}; }
     void print(int indent = 4, std::ostream &ost = std::cout) override;
@@ -159,18 +159,18 @@ class global_var : public named_base {
     std::uint32_t _flags;
     std::string _name;
     std::shared_ptr<type_id> _type;
-    std::shared_ptr<value_base> _value;
+    std::shared_ptr<literal_base> _value;
 
   public:
     global_var(std::shared_ptr<ast_location> l, int f, const std::string &n, std::shared_ptr<type_id> t,
-               std::shared_ptr<value_base> v)
+               std::shared_ptr<literal_base> v)
         : named_base(l), _flags(f), _name(n), _type(t), _value(v) {}
     ~global_var() {}
 
     std::uint32_t get_flags() { return _flags; }
     std::string get_exported_symbol() override { return _name; }
     std::shared_ptr<type_id> get_constant_type() { return _type; }
-    std::shared_ptr<value_base> get_value() { return _value; }
+    std::shared_ptr<literal_base> get_value() { return _value; }
     std::shared_ptr<rt_type_base> get_exported_type() override { return _type->get_rt_type(); }
     ast_type get_type() override { return ast_type::GlobalVariableDeclaration; }
     std::vector<std::shared_ptr<ast_base>> get_children() override { return {_type, _value}; }

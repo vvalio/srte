@@ -153,8 +153,8 @@ static std::uint64_t parse_int(srte_parser::parser *p, location l, const std::st
 %type <std::uint32_t> modifiers function_modifiers
 
 %type <std::string> name
-%type <std::shared_ptr<value_base>> value
-%type <std::shared_ptr<int_value>> num_value
+%type <std::shared_ptr<literal_base>> value
+%type <std::shared_ptr<int_literal>> num_value
 
 %type <std::shared_ptr<type_id>> type
 %type <std::shared_ptr<rt_type_base>> any_type
@@ -166,7 +166,7 @@ static std::uint64_t parse_int(srte_parser::parser *p, location l, const std::st
 %type <std::vector<std::shared_ptr<rt_type_base>>> param_types
 %type <std::shared_ptr<rt_type_array>> array_type
 
-%type <str_value::format> str_encoding_specifier
+%type <str_literal::encoding> str_encoding_specifier
 
 %type <std::shared_ptr<function_def>> function_def
 %type <std::vector<std::shared_ptr<function_def>>> function_defs
@@ -368,7 +368,7 @@ value:
     }
     | str_encoding_specifier V_STR
     {
-        $$ = std::make_shared<str_value>(B_LOC(@$), $2, $1, std::vector<unsigned char>($2.begin(), $2.end()));
+        $$ = std::make_shared<str_literal>(B_LOC(@$), $2, $1, std::vector<unsigned char>($2.begin(), $2.end()));
     }
     //| array_literal
     //| address_of
@@ -376,34 +376,34 @@ value:
 
 str_encoding_specifier:
     {
-        $$ = str_value::format::Utf8;
+        $$ = str_literal::encoding::Utf8;
     }
     | KW_UTF8
     {
-        $$ = str_value::format::Utf8;
+        $$ = str_literal::encoding::Utf8;
     }
     | KW_UTF16
     {
-        $$ = str_value::format::Utf16;
+        $$ = str_literal::encoding::Utf16;
     }
     | KW_UTF32
     {
-        $$ = str_value::format::Utf32;
+        $$ = str_literal::encoding::Utf32;
     }
     ;
 
 num_value:
     V_DEC 
     {
-        $$ = std::make_shared<int_value>(B_LOC(@$), $1, PLI(@$, $1, 10), int_value::format::Dec);
+        $$ = std::make_shared<int_literal>(B_LOC(@$), $1, PLI(@$, $1, 10), int_literal::format::Dec);
     }
     | V_BIN
     {
-        $$ = std::make_shared<int_value>(B_LOC(@$), $1, PLI(@$, $1, 2), int_value::format::Bin);
+        $$ = std::make_shared<int_literal>(B_LOC(@$), $1, PLI(@$, $1, 2), int_literal::format::Bin);
     }
     | V_HEX
     {
-        $$ = std::make_shared<int_value>(B_LOC(@$), $1, PLI(@$, $1, 16), int_value::format::Hex);
+        $$ = std::make_shared<int_literal>(B_LOC(@$), $1, PLI(@$, $1, 16), int_literal::format::Hex);
     }
     ;
 

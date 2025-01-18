@@ -22,7 +22,7 @@ void type_id::print(int indentC, std::ostream &ost) {
     std::cout << indent << _type->to_string() << "\n";
 }
 
-void int_value::print(int indentC, std::ostream &ost) {
+void int_literal::print(int indentC, std::ostream &ost) {
     std::string fmt_str = "<invalid>";
     switch (_fmt) {
         case format::Hex: fmt_str = "Hexadecimal"; break;
@@ -36,12 +36,12 @@ void int_value::print(int indentC, std::ostream &ost) {
     ost << indent << "Format: " << fmt_str << "\n";
 }
 
-void str_value::print(int indentC, std::ostream &ost) {
-    std::string fmt_str = "<invalid>";
+void str_literal::print(int indentC, std::ostream &ost) {
+    std::string enc_str = "<invalid>";
     switch (_fmt) {
-        case format::Utf8: fmt_str = "UTF-8"; break;
-        case format::Utf16: fmt_str = "UTF-16"; break;
-        case format::Utf32: fmt_str = "UTF-32"; break;
+        case encoding::Utf8: enc_str = "UTF-8"; break;
+        case encoding::Utf16: enc_str = "UTF-16"; break;
+        case encoding::Utf32: enc_str = "UTF-32"; break;
     }
 
     auto indent = std::string(indentC, ' ');
@@ -52,7 +52,7 @@ void str_value::print(int indentC, std::ostream &ost) {
     std::copy(_data.begin(), _data.end() - 1, std::ostream_iterator<unsigned char>(ost, ", "));
     ost << _data.back() << "\n";
 
-    ost << indent << "Format: " << fmt_str << "\n";
+    ost << indent << "Format: " << enc_str << "\n";
 }
 
 void global_var::print(int indentC, std::ostream &ost) {
