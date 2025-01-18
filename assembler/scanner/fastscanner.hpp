@@ -97,6 +97,7 @@ class fast_scanner final {
     void scan_id_or_kw(bool allow_string_id = true);
     void scan_start_of_decl_kw();
     void eat_newlines();
+    void eat_until_newline();
     void scan_str();
 
     void push_token(tok_type t, std::string lit);

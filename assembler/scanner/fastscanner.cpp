@@ -123,6 +123,12 @@ void fast_scanner::eat_newlines() {
     }
 }
 
+void fast_scanner::eat_until_newline() {
+    while (peek() != '\n') {
+        next();
+    }
+}
+
 void fast_scanner::scan_str() {
     if (!match('"')) {
         add_error_here("Expected start of string");
@@ -274,6 +280,7 @@ void fast_scanner::step() {
 
             break;
 
+        case ';': eat_until_newline(); break;
         case ' ':
         case '\t':
         case '\r': next(); break;

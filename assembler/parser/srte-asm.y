@@ -176,12 +176,12 @@ static std::uint64_t parse_int(srte_parser::parser *p, location l, const std::st
 %%
 
 program:
-    version_statement global_vars function_defs end_of_stmt {
+    NEWLINES version_statement global_vars function_defs end_of_stmt {
         auto as_unit = new assembly_unit(filename);
-        as_unit->add_globals($2);
-        as_unit->add_functions($3);
+        as_unit->add_globals($global_vars);
+        as_unit->add_functions($function_defs);
 
-        as_unit->set_version($1);
+        as_unit->set_version($version_statement);
         driver.set_result(std::shared_ptr<assembly_unit>(as_unit));
     }
     ;

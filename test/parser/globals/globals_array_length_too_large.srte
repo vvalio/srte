@@ -1,0 +1,2 @@
+; Array length max = 0xFFFFFFFF
+.global static const arr: [0xFFFFFFFFFF : bool]

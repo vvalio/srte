@@ -1,0 +1,17 @@
+; Some well-formed global variable declarations
+.global a: i32 = 0
+.global b: u8
+
+.global const c: str
+.global const d: str = "test"
+.global const e: str = utf8 "test"
+.global const f: str = utf16 "test"
+.global const g: str = utf32 "test"
+
+.global static const h: i32
+.global const static i: i32
+
+.global const j: [2 : i32]
+.global const k: [0b10101001 : bool]
+
+.global static l: &&&i32

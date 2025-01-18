@@ -1,13 +1,22 @@
 #include "parser/drv/drv.hpp"
 #include "scanner/fastscanner.hpp"
+#include <fstream>
 #include <iostream>
+#include <sstream>
 
-int main(int argc, char *argv[]) {
-    std::cout << "Ready\n";
+int main(int argc, const char *argv[]) {
+    if (argc == 1) {
+        std::cerr << "Need one argument: <filename>\n";
+        std::exit(1);
+    }
 
-    std::string line;
-    std::getline(std::cin, line, static_cast<char>(EOF));
-    fast_scanner f(line, "<input>");
+    auto filename = argv[1];
+    std::ifstream file(filename);
+    std::stringstream buf;
+    buf << file.rdbuf();
+    file.close();
+
+    fast_scanner f(buf.str(), filename);
 
     auto r = f.run();
     if (r.index() != 0) {
@@ -20,8 +29,6 @@ int main(int argc, char *argv[]) {
     }
 
     token_buf *tbuf = std::get<token_buf *>(r);
-    std::cout << tbuf->to_string() << "\n";
-
     parser_drv drv;
     srte_parser::parser p(*tbuf, drv, "<input>");
     const auto status = p.parse();
@@ -35,5 +42,5 @@ int main(int argc, char *argv[]) {
     }
 
     delete tbuf;
-    return 0;
+    return (drv.get_errors().empty() ? 0 : 1) || (status != 0 ? 1 : 0);
 }
