@@ -32,6 +32,10 @@ enum class ast_type {
     Value,
     FunctionDef,
     FunctionParameter,
+    RegisterReference,
+    InstructionInvocation,
+    AssignInstructionInvocation,
+    VoidInstructionInvocation,
 };
 
 // Base class for all AST nodes.
@@ -223,6 +227,34 @@ class function_def final : public named_base {
     static inline constexpr const std::uint32_t MOD_STATIC = 1 << 0;
     static inline constexpr const std::uint32_t MOD_EXPORT = 1 << 1;
     static inline constexpr const std::uint32_t MOD_PURE = 1 << 2;
+};
+
+// A reference to a register, spelled out as #XXX where XXX is any number.
+// May be in the assignment side of an instruction:
+//  #0 = addi $0, 2
+// or used as a value to one:
+//  ret #0
+class register_reference final : public ast_base {
+  private:
+    std::uint32_t _reg_idx; // the index to the register, e.g. the XXX in #XXX
+
+  public:
+    register_reference(std::shared_ptr<ast_location> loc, std::uint32_t reg_idx) : ast_base(loc), _reg_idx(reg_idx) {}
+
+    inline std::uint32_t get_reg_idx() { return _reg_idx; }
+    ast_type get_type() override { return ast_type::RegisterReference; }
+    std::vector<std::shared_ptr<ast_base>> get_children() override { return {}; }
+    void print(int indent = 4, std::ostream &stream = std::cout) override;
+};
+
+// An invocation of an instruction. This is an abstract class, see
+// `assign_instruction_invocation` and `void_instruction_invocation`.
+class instruction_invocation : public ast_base {
+  private:
+    // whether the instruction returns a value
+    // NOTE: does not take a stance on what kind of instruction invocation this is, since
+    // a returned value can also be ignored.
+    bool _produces_value;
 };
 
 class assembly_unit final : public ast_base {
