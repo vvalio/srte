@@ -153,8 +153,8 @@ static std::uint64_t parse_int(srte_parser::parser *p, location l, const std::st
 %type <std::uint32_t> modifiers function_modifiers
 
 %type <std::string> name
-%type <std::shared_ptr<literal_base>> value
-%type <std::shared_ptr<int_literal>> num_value
+%type <std::shared_ptr<literal_base>> literal
+%type <std::shared_ptr<int_literal>> num_literal
 
 %type <std::shared_ptr<type_id>> type
 %type <std::shared_ptr<rt_type_base>> any_type
@@ -206,9 +206,9 @@ global_var:
     {
         $$ = std::make_shared<global_var>(B_LOC(@$), $modifiers, $name, $type, nullptr);
     }
-    | DECL_KW_GLOBAL modifiers name COLON type EQUALS value
+    | DECL_KW_GLOBAL modifiers name COLON type EQUALS literal
     {
-        $$ = std::make_shared<global_var>(B_LOC(@$), $modifiers, $name, $type, $value);
+        $$ = std::make_shared<global_var>(B_LOC(@$), $modifiers, $name, $type, $literal);
     }
     ;
 
@@ -298,7 +298,7 @@ reference_type:
     ;
 
 array_type:
-    LBRACKET num_value COLON any_type RBRACKET
+    LBRACKET num_literal COLON any_type RBRACKET
     {
         auto capacity = $2->get_val();
         if (capacity > UINT32_MAX) {
@@ -361,8 +361,8 @@ builtin_type:
     | TYPE_STR  { $$ = BASIC(rt_type_kind::String); }
     ;
 
-value:
-    num_value
+literal:
+    num_literal
     {
         $$ = $1;
     }
@@ -392,7 +392,7 @@ str_encoding_specifier:
     }
     ;
 
-num_value:
+num_literal:
     V_DEC 
     {
         $$ = std::make_shared<int_literal>(B_LOC(@$), $1, PLI(@$, $1, 10), int_literal::format::Dec);
@@ -428,8 +428,8 @@ array_literal:
     ;
 
 value_list:
-    value |
-    value_list COMMA value
+    literal |
+    value_list COMMA literal
     ;
 
 end_of_stmt:
