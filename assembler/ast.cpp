@@ -29,14 +29,20 @@ std::shared_ptr<rt_type_base> function_def::get_exported_type() {
 std::vector<std::shared_ptr<ast_base>> function_def::get_children() { return {}; }
 
 std::vector<std::shared_ptr<ast_base>> assembly_unit::get_children() {
-    std::vector<std::shared_ptr<ast_base>> result(_consts.size());
-    for (auto c : _consts) {
+    std::vector<std::shared_ptr<ast_base>> result(_globals.size());
+    for (auto c : _globals) {
         result.push_back(c);
     }
 
     return result;
 }
 
-void assembly_unit::push_constant(std::shared_ptr<global_var> cdef) { _consts.push_back(cdef); }
+void assembly_unit::add_globals(std::vector<std::shared_ptr<global_var>> globals) {
+    std::copy(globals.begin(), globals.end(), std::back_inserter(_globals));
+}
+
+void assembly_unit::add_functions(std::vector<std::shared_ptr<function_def>> funcs) {
+    std::copy(funcs.begin(), funcs.end(), std::back_inserter(_funcs));
+}
 
 void assembly_unit::set_version(std::shared_ptr<version_decl> vd) { _version = vd; }

@@ -81,9 +81,14 @@ void assembly_unit::print(int indentC, std::ostream &ost) {
         _version->print(indentC + 4, ost);
     }
 
-    ost << indent << "Global variables(" << _consts.size() << "):\n";
-    for (auto &c : _consts) {
+    ost << indent << "Global variables(" << _globals.size() << "):\n";
+    for (auto &c : _globals) {
         c->print(indentC + 4, ost);
+    }
+
+    ost << indent << "Functions(" << _funcs.size() << "):\n";
+    for (auto &f : _funcs) {
+        f->print(indentC + 4, ost);
     }
 }
 
@@ -93,9 +98,8 @@ void function_param::print(int indentC, std::ostream &ost) {
 
     indent = std::string(indentC += 4, ' ');
     ost << indent << "Index: " << _param_index << "\n";
-    ost << indent << "Flags: " << std::bitset<32>(_flags);
-    ost << indent << "Type:\n";
-    _type->print(indentC + 4, ost);
+    ost << indent << "Flags: " << std::bitset<32>(_flags) << "\n";
+    _type->print(indentC, ost);
 }
 
 void function_def::print(int indentC, std::ostream &ost) {
@@ -105,6 +109,7 @@ void function_def::print(int indentC, std::ostream &ost) {
     indent = std::string(indentC += 4, ' ');
     ost << indent << "Name: " << _name << "\n";
     ost << indent << "Flags: " << std::bitset<32>(_flags) << "\n";
+    ost << indent << "Signature: " << get_exported_type()->to_string() << "\n";
     ost << indent << "Parameters:\n";
     for (auto &p : _params) {
         p->print(indentC, ost);

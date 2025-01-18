@@ -219,20 +219,26 @@ class function_def final : public named_base {
     inline std::string get_name() { return _name; }
     inline std::shared_ptr<type_id> get_return_type() { return _return_type; }
     inline std::vector<std::shared_ptr<function_param>> get_params() { return _params; }
+
+    static inline constexpr const std::uint32_t MOD_STATIC = 1 << 0;
+    static inline constexpr const std::uint32_t MOD_EXPORT = 1 << 1;
+    static inline constexpr const std::uint32_t MOD_PURE = 1 << 2;
 };
 
 class assembly_unit final : public ast_base {
   private:
     std::string _filename;
     std::shared_ptr<version_decl> _version;
-    std::vector<std::shared_ptr<global_var>> _consts;
+    std::vector<std::shared_ptr<global_var>> _globals;
+    std::vector<std::shared_ptr<function_def>> _funcs;
 
   public:
     assembly_unit(std::string fname) : _filename(fname) {}
     ~assembly_unit() {}
 
     void set_version(std::shared_ptr<version_decl> vd);
-    void push_constant(std::shared_ptr<global_var> cd);
+    void add_globals(std::vector<std::shared_ptr<global_var>> globals);
+    void add_functions(std::vector<std::shared_ptr<function_def>> funcs);
 
     ast_type get_type() override { return ast_type::AssemblyUnit; }
     std::vector<std::shared_ptr<ast_base>> get_children() override;

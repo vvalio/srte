@@ -5,7 +5,6 @@
 %param {token_buf &tbuf}
 %parse-param {parser_drv &driver}
 %parse-param {const std::string &filename}
-%parse-param {parser_private &privd} // only way to make a class member in bison
 %locations
 
 %code requires {
@@ -13,7 +12,6 @@
 #include "ast.hpp"
 #include "type.hpp"
 #include "drv/drv.hpp"
-#include "drv/parser-private.hpp"
 #include <cstdint>
 
 class token_buf;
@@ -28,10 +26,15 @@ srte_parser::parser::token_type yylex(srte_parser::parser::value_type *value, sr
 
 %token DECL_KW_VERSION ".version"
 %token DECL_KW_GLOBAL ".global"
+%token DECL_KW_FUNC ".func"
+%token DECL_KW_END ".end"
 
 %token KW_STATIC "static"
 %token KW_CONST "const"
 %token KW_FUNC "func"
+%token KW_EXPORT "export"
+%token KW_PURE "pure"
+
 %token KW_UTF8
 %token KW_UTF16
 %token KW_UTF32
@@ -59,6 +62,8 @@ srte_parser::parser::token_type yylex(srte_parser::parser::value_type *value, sr
 
 %token LBRACKET
 %token RBRACKET
+%token LPAREN
+%token RPAREN
 %token COMMA
 %token COLON
 %token EQUALS
@@ -123,36 +128,58 @@ static std::uint64_t parse_int(srte_parser::parser *p, location l, const std::st
 #define PLI(l, d, b) parse_int(this, l, d, b)
 #define B_LOC(rp) std::shared_ptr(get_loc(rp, filename))
 #define WARN(rp, msg) warning(this, rp, msg)
-#define CLM() privd.mods = 0
 
 #define BASIC(t) std::make_shared<rt_type_basic>(t)
+
+#define APPEND_MOD(at, result, accum, bit)                                  \
+    do {                                                                    \
+        if ((accum & bit) != 0) {                                           \
+            WARN(at, "Effective modifier bit " #bit " declared twice");     \
+        }                                                                   \
+                                                                            \
+        result = accum | bit;                                               \
+    } while (0)
+
+#define APPEND_LR_VECTOR(result, previous, newelem)                             \
+    std::copy(previous.begin(), previous.end(), std::back_inserter(result));    \
+    result.push_back(newelem)                                                   \
 
 %}
 
 %type <std::shared_ptr<version_decl>> version_statement
+
 %type <std::vector<std::shared_ptr<global_var>>> global_vars
 %type <std::shared_ptr<global_var>> global_var
+%type <std::uint32_t> modifiers function_modifiers
+
 %type <std::string> name
 %type <std::shared_ptr<value_base>> value
 %type <std::shared_ptr<int_value>> num_value
+
 %type <std::shared_ptr<type_id>> type
 %type <std::shared_ptr<rt_type_base>> any_type
 %type <std::shared_ptr<rt_type_basic>> builtin_type
 %type <std::shared_ptr<rt_type_ref>> reference_type
 %type <std::shared_ptr<rt_type_function>> function_type
+
 %type <std::shared_ptr<rt_type_base>> return_type
 %type <std::vector<std::shared_ptr<rt_type_base>>> param_types
 %type <std::shared_ptr<rt_type_array>> array_type
+
 %type <str_value::format> str_encoding_specifier
+
+%type <std::shared_ptr<function_def>> function_def
+%type <std::vector<std::shared_ptr<function_def>>> function_defs
+%type <std::shared_ptr<function_param>> function_param
+%type <std::vector<std::shared_ptr<function_param>>> function_params
 
 %%
 
 program:
-    version_statement global_vars end_of_stmt {
+    version_statement global_vars function_defs end_of_stmt {
         auto as_unit = new assembly_unit(filename);
-        for (auto gv : $2) {
-            as_unit->push_constant(gv);
-        }
+        as_unit->add_globals($2);
+        as_unit->add_functions($3);
 
         as_unit->set_version($1);
         driver.set_result(std::shared_ptr<assembly_unit>(as_unit));
@@ -170,49 +197,91 @@ version_statement:
 global_vars: { $$ = {}; }
     | global_vars global_var end_of_stmt
     {
-        $$.insert($$.end(), $1.begin(), $1.end());
-        $$.push_back($2);
+        APPEND_LR_VECTOR($$, $1, $2);
     }
     ;
 
 global_var:
     DECL_KW_GLOBAL modifiers name COLON type
     {
-        $$ = std::make_shared<global_var>(B_LOC(@$), privd.mods, $name, $type, nullptr);
-        CLM();
+        $$ = std::make_shared<global_var>(B_LOC(@$), $modifiers, $name, $type, nullptr);
     }
     | DECL_KW_GLOBAL modifiers name COLON type EQUALS value
     {
-        $$ = std::make_shared<global_var>(B_LOC(@$), privd.mods, $name, $type, $value);
-        CLM();
+        $$ = std::make_shared<global_var>(B_LOC(@$), $modifiers, $name, $type, $value);
     }
     ;
 
 modifiers:
-    /* empty */
+    /* empty */ { $$ = 0; }
     | modifiers KW_CONST
     {
-        if ((privd.mods & global_var::MOD_CONST) != 0) {
-            WARN(@$, "Modifier 'const' already present");
-        } else {
-            privd.mods |= global_var::MOD_CONST;
-        }
+        APPEND_MOD(@$, $$, $1, global_var::MOD_CONST);
     }
     | modifiers KW_STATIC
     {
-        if ((privd.mods & global_var::MOD_STATIC) != 0) {
-            WARN(@$, "Modifier 'static' already present");
-        } else {
-            privd.mods |= global_var::MOD_STATIC;
-        }
+        APPEND_MOD(@$, $$, $1, global_var::MOD_STATIC);
     }
+    ;
+
+function_defs: { $$ = {}; }
+    | function_defs function_def end_of_stmt
+    {
+        APPEND_LR_VECTOR($$, $1, $2);
+    }
+    ;
+
+function_def:
+    DECL_KW_FUNC function_modifiers name function_params RET_ARROW type NEWLINES function_end
+    {
+        $$ = std::make_shared<function_def>(B_LOC(@$), $function_modifiers, $name, $type, $function_params);
+    }
+    ;
+
+function_params: { $$ = {}; }
+    | function_param
+    {
+        $$.push_back($1);
+    }
+    | function_params COMMA function_param
+    {
+        APPEND_LR_VECTOR($$, $1, $3);
+    }
+    ;
+
+function_param:
+    type
+    {
+        $$ = std::make_shared<function_param>(B_LOC(@$), $type, 0, 0);
+    }
+    ;
+
+function_modifiers: { $$ = 0; }
+    | function_modifiers KW_EXPORT
+    {
+        APPEND_MOD(@$, $$, $1, function_def::MOD_EXPORT);
+    }
+    | function_modifiers KW_PURE
+    {
+        APPEND_MOD(@$, $$, $1, function_def::MOD_PURE);
+    }
+    | function_modifiers KW_STATIC
+    {
+        APPEND_MOD(@$, $$, $1, function_def::MOD_STATIC);
+    }
+    ;
+
+function_end:
+    DECL_KW_END KW_FUNC
+    | DECL_KW_END
     ;
 
 type:
     any_type
     {
         $$ = std::make_shared<type_id>(B_LOC(@$), $1);
-    }    
+    }
+    ; 
 
 any_type:
     builtin_type { $$ = $1; }
@@ -258,8 +327,7 @@ param_types:
     }
     | param_types COMMA any_type
     {
-        $$.insert($$.end(), $1.begin(), $1.end());
-        $$.push_back($3);
+        APPEND_LR_VECTOR($$, $1, $3);
     }
     ;
 
@@ -275,6 +343,7 @@ return_type:
     {
         $$ = $1;
     }
+    ;
 
 builtin_type:
     TYPE_I8     { $$ = BASIC(rt_type_kind::I8); }

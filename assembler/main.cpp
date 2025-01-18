@@ -1,5 +1,4 @@
 #include "parser/drv/drv.hpp"
-#include "parser/drv/parser-private.hpp"
 #include "scanner/fastscanner.hpp"
 #include <iostream>
 
@@ -24,8 +23,7 @@ int main(int argc, char *argv[]) {
     std::cout << tbuf->to_string() << "\n";
 
     parser_drv drv;
-    parser_private ppr;
-    srte_parser::parser p(*tbuf, drv, "<input>", ppr);
+    srte_parser::parser p(*tbuf, drv, "<input>");
     const auto status = p.parse();
 
     if (!drv.get_errors().empty()) {

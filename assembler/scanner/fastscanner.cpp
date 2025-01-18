@@ -108,6 +108,10 @@ void fast_scanner::scan_start_of_decl_kw() {
         push_token(tok_type::DECL_KW_GLOBAL, ".global");
     } else if (match("version")) {
         push_token(tok_type::DECL_KW_VERSION, ".version");
+    } else if (match("func")) {
+        push_token(tok_type::DECL_KW_FUNC, ".func");
+    } else if (match("end")) {
+        push_token(tok_type::DECL_KW_END, ".end");
     } else {
         add_error_here("Unexpected '.': following token is not a declaration keyword");
     }
@@ -198,7 +202,8 @@ static const std::unordered_map<std::string, tok_type> keywords = {
     {"u64", tok_type::TYPE_U64},   {"i128", tok_type::TYPE_I128},   {"u128", tok_type::TYPE_U128},
     {"bool", tok_type::TYPE_BOOL}, {"void", tok_type::TYPE_VOID},   {"str", tok_type::TYPE_STR},
     {"func", tok_type::KW_FUNC},   {"_", tok_type::UNDERSCORE},     {"utf8", tok_type::KW_UTF8},
-    {"utf16", tok_type::KW_UTF16}, {"utf32", tok_type::KW_UTF32},
+    {"utf16", tok_type::KW_UTF16}, {"utf32", tok_type::KW_UTF32},   {"export", tok_type::KW_EXPORT},
+    {"pure", tok_type::KW_PURE},
 };
 
 void fast_scanner::scan_id_or_kw(bool allow_string_id) {
