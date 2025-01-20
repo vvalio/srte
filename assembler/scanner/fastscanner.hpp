@@ -96,6 +96,8 @@ class fast_scanner final {
     void scan_bin_number();
     void scan_id_or_kw(bool allow_string_id = true);
     void scan_start_of_decl_kw();
+    void scan_arg_ref();
+    void scan_reg_ref();
     void eat_newlines();
     void eat_until_newline();
     void scan_str();

@@ -1,10 +1,12 @@
 // This file contains AST related classes.
 #pragma once
+#include "opcode.hpp"
 #include "parser/location.hh"
 #include "type.hpp"
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 // Points to a source file specific location (for error messages)
@@ -33,7 +35,9 @@ enum class ast_type {
     FunctionDef,
     FunctionParameter,
     RegisterReference,
+    ArgumentReference,
     InstructionInvocation,
+    InstructionArg,
     AssignInstructionInvocation,
     VoidInstructionInvocation,
 };
@@ -200,35 +204,6 @@ class function_param final : public ast_base {
     inline std::uint32_t get_flags() { return _flags; }
 };
 
-class function_def final : public named_base {
-  private:
-    std::uint32_t _flags;
-    std::string _name;
-    std::shared_ptr<type_id> _return_type;
-    std::vector<std::shared_ptr<function_param>> _params;
-
-  public:
-    function_def(std::shared_ptr<ast_location> loc, std::uint32_t flags, const std::string &name,
-                 std::shared_ptr<type_id> return_type, std::vector<std::shared_ptr<function_param>> params)
-        : named_base(loc), _flags(flags), _name(name), _return_type(return_type), _params(params) {}
-
-    std::shared_ptr<rt_type_base> get_exported_type() override;
-    std::vector<std::shared_ptr<ast_base>> get_children() override;
-    void print(int indent = 4, std::ostream &ost = std::cout) override;
-
-    std::string get_exported_symbol() override { return _name; }
-    ast_type get_type() override { return ast_type::FunctionDef; }
-
-    inline std::uint32_t get_flags() { return _flags; }
-    inline std::string get_name() { return _name; }
-    inline std::shared_ptr<type_id> get_return_type() { return _return_type; }
-    inline std::vector<std::shared_ptr<function_param>> get_params() { return _params; }
-
-    static inline constexpr const std::uint32_t MOD_STATIC = 1 << 0;
-    static inline constexpr const std::uint32_t MOD_EXPORT = 1 << 1;
-    static inline constexpr const std::uint32_t MOD_PURE = 1 << 2;
-};
-
 // A reference to a register, spelled out as #XXX where XXX is any number.
 // May be in the assignment side of an instruction:
 //  #0 = addi $0, 2
@@ -247,14 +222,133 @@ class register_reference final : public ast_base {
     void print(int indent = 4, std::ostream &stream = std::cout) override;
 };
 
+// Reference to a function argument, spelled out as $XXX where XXX is a number.
+class argument_reference final : public ast_base {
+  private:
+    // The argument $XXX being referenced.
+    std::uint32_t _arg_idx;
+
+  public:
+    argument_reference(std::shared_ptr<ast_location> loc, std::uint32_t arg_idx) : ast_base(loc), _arg_idx(arg_idx) {}
+
+    virtual void prevent_error();
+    inline std::uint32_t get_arg_idx() const { return _arg_idx; }
+    ast_type get_type() override { return ast_type::ArgumentReference; }
+    std::vector<std::shared_ptr<ast_base>> get_children() override { return {}; }
+    void print(int indent = 4, std::ostream &stream = std::cout) override;
+};
+
+// Any argument passed to an instruction
+using instruction_arg_data = std::variant<
+    // #XXX in args list
+    std::shared_ptr<register_reference>,
+    // Any literal value
+    std::shared_ptr<literal_base>,
+    // Function argument
+    std::shared_ptr<argument_reference>>;
+
+// All instruction arguments are classified with the type, just like in LLVM.
+// The type is placed before the value in all cases:
+// i32 #0
+// i32 $0
+// i32 0x23 etc
+class instruction_arg final : public ast_base {
+  private:
+    instruction_arg_data _data;
+    std::shared_ptr<type_id> _qualtype;
+
+  public:
+    instruction_arg(std::shared_ptr<ast_location> loc, instruction_arg_data data, std::shared_ptr<type_id> qualtype)
+        : ast_base(loc), _data(data), _qualtype(qualtype) {}
+
+    inline instruction_arg_data get_data() const { return _data; }
+    inline std::shared_ptr<type_id> get_qualtype() const { return _qualtype; }
+
+    ast_type get_type() override { return ast_type::InstructionArg; }
+    std::vector<std::shared_ptr<ast_base>> get_children() override;
+    void print(int indent = 4, std::ostream &stream = std::cout) override;
+};
+
 // An invocation of an instruction. This is an abstract class, see
 // `assign_instruction_invocation` and `void_instruction_invocation`.
 class instruction_invocation : public ast_base {
+  protected:
+    opcode _op;
+    std::vector<std::shared_ptr<instruction_arg>> _args;
+
+    instruction_invocation(std::shared_ptr<ast_location> loc, opcode op,
+                           std::vector<std::shared_ptr<instruction_arg>> args)
+        : ast_base(loc), _op(op), _args(args) {}
+
+  public:
+    inline opcode get_op() const { return _op; }
+    inline std::vector<std::shared_ptr<instruction_arg>> get_args() const { return _args; }
+
+    std::vector<std::shared_ptr<ast_base>> get_children() override;
+};
+
+class assign_instruction_invocation final : public instruction_invocation {
   private:
-    // whether the instruction returns a value
-    // NOTE: does not take a stance on what kind of instruction invocation this is, since
-    // a returned value can also be ignored.
-    bool _produces_value;
+    std::shared_ptr<register_reference> _target_reg; // always present
+
+  public:
+    assign_instruction_invocation(std::shared_ptr<ast_location> loc, opcode op,
+                                  std::vector<std::shared_ptr<instruction_arg>> args,
+                                  std::shared_ptr<register_reference> target_reg)
+        : instruction_invocation(loc, op, args), _target_reg(target_reg) {}
+
+    ast_type get_type() override { return ast_type::AssignInstructionInvocation; }
+    inline std::shared_ptr<register_reference> get_target_reg() const { return _target_reg; }
+
+    void print(int indent = 4, std::ostream &stream = std::cout) override;
+};
+
+class void_instruction_invocation final : public instruction_invocation {
+  private:
+    bool _has_suppression; // ! preceding the instruction if the value is meant to be ignored
+
+  public:
+    void_instruction_invocation(std::shared_ptr<ast_location> loc, opcode op,
+                                std::vector<std::shared_ptr<instruction_arg>> args, bool has_suppression)
+        : instruction_invocation(loc, op, args), _has_suppression(has_suppression) {}
+
+    ast_type get_type() override { return ast_type::VoidInstructionInvocation; }
+    inline bool has_suppression() const { return _has_suppression; }
+
+    void print(int indent = 4, std::ostream &ost = std::cout) override;
+};
+
+class function_def final : public named_base {
+  private:
+    std::uint32_t _flags;
+    std::string _name;
+    std::shared_ptr<type_id> _return_type;
+    std::vector<std::shared_ptr<function_param>> _params;
+    std::vector<std::shared_ptr<instruction_invocation>> _instructions;
+
+  public:
+    function_def(std::shared_ptr<ast_location> loc, std::uint32_t flags, const std::string &name,
+                 std::shared_ptr<type_id> return_type, std::vector<std::shared_ptr<function_param>> params,
+                 std::vector<std::shared_ptr<instruction_invocation>> instructions)
+        : named_base(loc), _flags(flags), _name(name), _return_type(return_type), _params(params),
+          _instructions(instructions) {}
+
+    std::shared_ptr<rt_type_base> get_exported_type() override;
+    std::vector<std::shared_ptr<ast_base>> get_children() override;
+    void print(int indent = 4, std::ostream &ost = std::cout) override;
+
+    std::string get_exported_symbol() override { return _name; }
+    ast_type get_type() override { return ast_type::FunctionDef; }
+
+    inline std::uint32_t get_flags() { return _flags; }
+    inline std::string get_name() { return _name; }
+    inline std::shared_ptr<type_id> get_return_type() { return _return_type; }
+    inline std::vector<std::shared_ptr<function_param>> get_params() { return _params; }
+    inline std::vector<std::shared_ptr<instruction_invocation>> get_instructions() const { return _instructions; }
+
+    static inline constexpr const std::uint32_t MOD_STATIC = 1 << 0;
+    static inline constexpr const std::uint32_t MOD_EXPORT = 1 << 1;
+    static inline constexpr const std::uint32_t MOD_PURE = 1 << 2;
 };
 
 class assembly_unit final : public ast_base {

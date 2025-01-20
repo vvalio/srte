@@ -1,6 +1,7 @@
 #include "ast.hpp"
 #include "parser/srte-asm-parser.hpp"
 #include "type.hpp"
+#include <iterator>
 #include <memory>
 #include <string>
 
@@ -27,6 +28,30 @@ std::shared_ptr<rt_type_base> function_def::get_exported_type() {
 }
 
 std::vector<std::shared_ptr<ast_base>> function_def::get_children() { return {}; }
+
+std::vector<std::shared_ptr<ast_base>> instruction_arg::get_children() {
+    // Ugh...
+    std::shared_ptr<ast_base> dest;
+    switch (_data.index()) {
+        case 0: dest = std::get<std::shared_ptr<register_reference>>(_data); break;
+        case 1: dest = std::get<std::shared_ptr<literal_base>>(_data); break;
+        case 2: dest = std::get<std::shared_ptr<argument_reference>>(_data); break;
+    }
+
+    return {_qualtype, dest};
+}
+
+std::vector<std::shared_ptr<ast_base>> instruction_invocation::get_children() {
+    std::vector<std::shared_ptr<ast_base>> result(_args.size());
+    for (auto &arg : _args) {
+        const auto &arg_children = arg->get_children();
+        for (auto &arg_child : arg_children) {
+            result.push_back(arg_child);
+        }
+    }
+
+    return result;
+}
 
 std::vector<std::shared_ptr<ast_base>> assembly_unit::get_children() {
     std::vector<std::shared_ptr<ast_base>> result(_globals.size());

@@ -5,6 +5,8 @@
 #include <sstream>
 
 int main(int argc, const char *argv[]) {
+    std::cout << std::boolalpha;
+
     if (argc == 1) {
         std::cerr << "Need one argument: <filename>\n";
         std::exit(1);

@@ -50,7 +50,15 @@ token_buf::~token_buf() {
     }
 }
 
-void token_buf::add(token *t) { tokens.push_back(t); }
+void token_buf::add(token *t) {
+    // Don't write newlines to beginning of file
+    if (!(tokens.empty() && t->type == tok_type::NEWLINES)) {
+        tokens.push_back(t);
+    } else {
+        t->val.destroy<std::string>();
+        delete t; // free the token since it gets discarded anyway
+    }
+}
 
 std::string token_buf::to_string() const {
     std::stringstream sr;
@@ -127,6 +135,28 @@ void fast_scanner::eat_until_newline() {
     while (peek() != '\n') {
         next();
     }
+}
+
+void fast_scanner::scan_arg_ref() {
+    std::stringstream sr;
+    sr << '$';
+
+    while (std::isdigit(peek())) {
+        sr << next();
+    }
+
+    push_token(tok_type::ARG_REF, sr.str());
+}
+
+void fast_scanner::scan_reg_ref() {
+    std::stringstream sr;
+    sr << '#';
+
+    while (std::isdigit(peek())) {
+        sr << next();
+    }
+
+    push_token(tok_type::REG_REF, sr.str());
 }
 
 void fast_scanner::scan_str() {
@@ -270,6 +300,18 @@ void fast_scanner::step() {
         case ']':
             next();
             push_token(tok_type::RBRACKET, "]");
+            break;
+        case '!':
+            next();
+            push_token(tok_type::BANG, "!");
+            break;
+        case '$':
+            next();
+            scan_arg_ref();
+            break;
+        case '#':
+            next();
+            scan_reg_ref();
             break;
         case '-':
             if (match("->")) {

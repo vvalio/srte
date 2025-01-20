@@ -57,9 +57,12 @@ srte_parser::parser::token_type yylex(srte_parser::parser::value_type *value, sr
 %token<std::string> V_HEX
 %token<std::string> V_BIN
 %token<std::string> V_STR
+%token<std::string> ARG_REF
+%token<std::string> REG_REF
 
 %token<std::string> NAME
 
+%token BANG
 %token LBRACKET
 %token RBRACKET
 %token LPAREN
@@ -124,7 +127,21 @@ static std::uint64_t parse_int(srte_parser::parser *p, location l, const std::st
     return result;
 }
 
+static std::uint32_t parse32(srte_parser::parser *p, location l, const std::string &d, int base) {
+    bool ofw = false,
+        err = false;
+    const std::uint32_t result = parse_native(d.c_str(), base, 32, ofw, err);
+    if (ofw) {
+        p->error(l, "Integer value too large!");
+    } else if (err) {
+        fatal(l, "Value token was unparsable");
+    }
+
+    return result;
+}
+
 #define PB(d, l) parse_byte(this, d, l)
+#define PDI(l, d) parse32(this, l, d, 10)
 #define PLI(l, d, b) parse_int(this, l, d, b)
 #define B_LOC(rp) std::shared_ptr(get_loc(rp, filename))
 #define WARN(rp, msg) warning(this, rp, msg)
@@ -173,10 +190,19 @@ static std::uint64_t parse_int(srte_parser::parser *p, location l, const std::st
 %type <std::shared_ptr<function_param>> function_param
 %type <std::vector<std::shared_ptr<function_param>>> function_params
 
+%type <std::vector<std::shared_ptr<instruction_invocation>>> function_body
+%type <std::shared_ptr<instruction_invocation>> instruction
+%type <opcode> opcode
+%type <std::vector<std::shared_ptr<instruction_arg>>> instruction_arguments
+%type <std::shared_ptr<instruction_arg>> instruction_arg
+
+%type <std::shared_ptr<argument_reference>> argument_ref
+%type <std::shared_ptr<register_reference>> register_ref
+
 %%
 
 program:
-    NEWLINES version_statement global_vars function_defs end_of_stmt {
+    version_statement global_vars function_defs end_of_stmt {
         auto as_unit = new assembly_unit(filename);
         as_unit->add_globals($global_vars);
         as_unit->add_functions($function_defs);
@@ -232,9 +258,9 @@ function_defs: { $$ = {}; }
     ;
 
 function_def:
-    DECL_KW_FUNC function_modifiers name function_params RET_ARROW type NEWLINES function_end
+    DECL_KW_FUNC function_modifiers name function_params RET_ARROW type NEWLINES function_body function_end
     {
-        $$ = std::make_shared<function_def>(B_LOC(@$), $function_modifiers, $name, $type, $function_params);
+        $$ = std::make_shared<function_def>(B_LOC(@$), $function_modifiers, $name, $type, $function_params, $function_body);
     }
     ;
 
@@ -268,6 +294,80 @@ function_modifiers: { $$ = 0; }
     | function_modifiers KW_STATIC
     {
         APPEND_MOD(@$, $$, $1, function_def::MOD_STATIC);
+    }
+    ;
+
+function_body: { $$ = {}; }
+    | function_body instruction NEWLINES
+    {
+        APPEND_LR_VECTOR($$, $1, $2);
+    }
+    ;
+
+instruction:
+    register_ref EQUALS opcode instruction_arguments
+    {
+        $$ = std::make_shared<assign_instruction_invocation>(B_LOC(@$), $opcode, $instruction_arguments, $register_ref);
+    }
+    | opcode instruction_arguments
+    {
+        $$ = std::make_shared<void_instruction_invocation>(B_LOC(@$), $opcode, $instruction_arguments, false);
+    }
+    | BANG opcode instruction_arguments
+    {
+        $$ = std::make_shared<void_instruction_invocation>(B_LOC(@$), $opcode, $instruction_arguments, true);
+    }
+    ;
+
+opcode:
+    NAME
+    {
+        const auto op = opcode_lookup($1);
+        if (op == opcode::INVALID) {
+            error(@$, "Invalid opcode '" + $1 + "'");
+        }
+
+        $$ = op;
+    }
+    ;
+
+instruction_arguments: { $$ = {}; }
+    | instruction_arg
+    {
+        $$.push_back($1);
+    }
+    | instruction_arguments COMMA instruction_arg
+    {
+        APPEND_LR_VECTOR($$, $1, $3);
+    }
+    ;
+
+instruction_arg:
+    type register_ref
+    {
+        $$ = std::make_shared<instruction_arg>(B_LOC(@$), $register_ref, $type);
+    }
+    | type argument_ref
+    {
+        $$ = std::make_shared<instruction_arg>(B_LOC(@$), $argument_ref, $type);
+    }
+    | type literal
+    {
+        $$ = std::make_shared<instruction_arg>(B_LOC(@$), $literal, $type);
+    }
+    ;
+
+argument_ref:
+    ARG_REF
+    {
+        $$ = std::make_shared<argument_reference>(B_LOC(@$), PDI(@$, $1.substr(1)));
+    }
+    ;
+
+register_ref:
+    REG_REF
+    {
+        $$ = std::make_shared<register_reference>(B_LOC(@$), PDI(@$, $1.substr(1)));
     }
     ;
 
@@ -430,6 +530,10 @@ array_literal:
 value_list:
     literal |
     value_list COMMA literal
+    ;
+
+ws:
+    | NEWLINES
     ;
 
 end_of_stmt:

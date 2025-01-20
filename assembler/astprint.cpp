@@ -1,4 +1,5 @@
 #include "ast.hpp"
+#include "opcode.hpp"
 #include <bitset>
 #include <iterator>
 
@@ -117,4 +118,62 @@ void function_def::print(int indentC, std::ostream &ost) {
 
     ost << indent << "Return type:\n";
     _return_type->print(indentC, ost);
+
+    ost << indent << "Body:\n";
+    for (const auto &ins : _instructions) {
+        ins->print(indentC + 4, ost);
+    }
 }
+
+void assign_instruction_invocation::print(int indentC, std::ostream &ost) {
+    auto indent = std::string(indentC, ' ');
+    ost << indent << "Instruction invocation:\n";
+
+    indent = std::string(indentC += 4, ' ');
+    ost << indent << "Opcode: " << opcode_to_string(_op) << "\n";
+    ost << indent << "Arguments:\n";
+    for (auto &arg : get_args()) {
+        arg->print(indentC + 4, ost);
+    }
+
+    ost << indent << "Target register:\n";
+    _target_reg->print(indentC + 4, ost);
+}
+
+void void_instruction_invocation::print(int indentC, std::ostream &ost) {
+    auto indent = std::string(indentC, ' ');
+    ost << indent << "Instruction invocation:\n";
+
+    indent = std::string(indentC += 4, ' ');
+    ost << indent << "Opcode: " << opcode_to_string(_op) << "\n";
+    ost << indent << "Has result value suppression: " << _has_suppression << "\n";
+    ost << indent << "Arguments:\n";
+    for (const auto &arg : _args) {
+        arg->print(indentC + 4, ost);
+    }
+}
+
+void register_reference::print(int indentC, std::ostream &ost) {
+    const auto indent = std::string(indentC, ' ');
+    ost << indent << "Register reference: " << _reg_idx << "\n";
+}
+
+void argument_reference::print(int indentC, std::ostream &ost) {
+    const auto indent = std::string(indentC, ' ');
+    ost << indent << "Argument reference: " << _arg_idx << "\n";
+}
+
+void instruction_arg::print(int indentC, std::ostream &ost) {
+    auto indent = std::string(indentC, ' ');
+    ost << indent << "Instruction argument:\n";
+
+    indent = std::string(indentC += 4, ' ');
+    _qualtype->print(indentC, ost);
+
+    ost << indent << "Value:\n";
+    // Second child is the argument data
+    get_children()[1]->print(indentC + 4, ost);
+}
+
+// So we can have a vtable
+void argument_reference::prevent_error() {}

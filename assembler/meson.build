@@ -3,6 +3,7 @@ sources = [
     'ast.cpp',
     'astprint.cpp',
     'numparse.cpp',
+    'opcode.cpp',
     'scanner/fastscanner.cpp',
     'parser/srte-asm-parser.cpp',
     'parser/drv/drv.cpp',
