@@ -2,3 +2,4 @@ assembler/parser/srte-asm-parser.*pp
 assembler/parser/location.hh
 build
 .cache
+test/tests.log
