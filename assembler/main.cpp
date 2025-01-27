@@ -1,3 +1,4 @@
+#include "codegen/codegen.hpp"
 #include "parser/drv/drv.hpp"
 #include "scanner/fastscanner.hpp"
 #include <fstream>
@@ -44,5 +45,9 @@ int main(int argc, const char *argv[]) {
     }
 
     delete tbuf;
+
+    codegen cg(drv.get_result());
+    cg.compile();
+
     return (drv.get_errors().empty() ? 0 : 1) || (status != 0 ? 1 : 0);
 }

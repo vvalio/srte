@@ -104,13 +104,20 @@ class named_base : public ast_base {
 };
 
 class literal_base : public ast_base {
+  public:
+    enum class kind {
+        Int,
+        Str,
+    };
+
   private:
     std::string _vstr;
 
   public:
     literal_base(std::shared_ptr<ast_location> l, const std::string &vstr) : ast_base(l), _vstr(vstr) {}
 
-    inline std::string get_vstr() { return _vstr; }
+    inline std::string get_vstr() const { return _vstr; }
+    virtual kind get_kind() const = 0;
     ast_type get_type() override final { return ast_type::Value; }
 };
 
@@ -132,6 +139,7 @@ class int_literal : public literal_base {
 
     inline std::uint64_t get_val() { return _val; }
     inline format get_fmt() { return _fmt; }
+    inline kind get_kind() const override { return kind::Int; }
     std::vector<std::shared_ptr<ast_base>> get_children() override { return {}; }
     void print(int indent = 4, std::ostream &ost = std::cout) override;
 };
@@ -154,6 +162,7 @@ class str_literal : public literal_base {
 
     inline encoding get_encoding() { return _fmt; }
     inline std::vector<unsigned char> get_data() { return _data; }
+    inline kind get_kind() const override { return kind::Str; }
     std::vector<std::shared_ptr<ast_base>> get_children() override { return {}; }
     void print(int indent = 4, std::ostream &ost = std::cout) override;
 };
@@ -365,6 +374,10 @@ class assembly_unit final : public ast_base {
     void set_version(std::shared_ptr<version_decl> vd);
     void add_globals(std::vector<std::shared_ptr<global_var>> globals);
     void add_functions(std::vector<std::shared_ptr<function_def>> funcs);
+
+    inline std::vector<std::shared_ptr<global_var>> get_globals() const { return _globals; }
+    inline std::vector<std::shared_ptr<function_def>> get_functions() const { return _funcs; }
+    inline std::string get_filename() { return _filename; }
 
     ast_type get_type() override { return ast_type::AssemblyUnit; }
     std::vector<std::shared_ptr<ast_base>> get_children() override;

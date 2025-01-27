@@ -42,10 +42,15 @@ class rt_type_base {
     rt_type_base(rt_type_kind k) : _kind(k) {}
 
     // Is this type a basic builtin type?
-    inline bool is_basic() { return (int)_kind <= (int)rt_type_kind::String; }
-    rt_type_kind get_kind() { return _kind; }
+    inline bool is_basic() const { return (int)_kind <= (int)rt_type_kind::String; }
+    rt_type_kind get_kind() const { return _kind; }
 
-    virtual std::string to_string() = 0;
+    virtual std::string to_string() const = 0;
+
+    // Whether a value of type `this` can be assigned to a variable of type `other`.
+    virtual bool is_assignable_to(const rt_type_base &other) const = 0;
+    // Whether `this` is the exact same type as `other`.
+    virtual bool equals(const rt_type_base &other) const = 0;
 };
 
 // Represents basic types.
@@ -53,7 +58,7 @@ class rt_type_basic final : public rt_type_base {
   public:
     rt_type_basic(rt_type_kind k) : rt_type_base(k) {}
 
-    std::string to_string() override {
+    std::string to_string() const override {
         switch (get_kind()) {
             case rt_type_kind::I8: return "i8";
             case rt_type_kind::U8: return "u8";
@@ -71,6 +76,9 @@ class rt_type_basic final : public rt_type_base {
             default: std::cerr << "bad type_kind in rt_type_basic: " << (int)get_kind() << "\n"; std::abort();
         }
     }
+
+    bool is_assignable_to(const rt_type_base &other) const override;
+    bool equals(const rt_type_base &other) const override;
 };
 
 class rt_type_function final : public rt_type_base {
@@ -82,7 +90,7 @@ class rt_type_function final : public rt_type_base {
     rt_type_function(std::shared_ptr<rt_type_base> return_type, std::vector<std::shared_ptr<rt_type_base>> params)
         : rt_type_base(rt_type_kind::Function), _return_type(return_type), _params(params) {}
 
-    std::string to_string() override {
+    std::string to_string() const override {
         std::stringstream sr;
         sr << "function(";
         for (size_t i = 0; i < _params.size(); i++) {
@@ -97,6 +105,12 @@ class rt_type_function final : public rt_type_base {
         sr << ") -> " << _return_type->to_string();
         return sr.str();
     }
+
+    inline std::shared_ptr<rt_type_base> get_return_type() const { return _return_type; }
+    inline std::vector<std::shared_ptr<rt_type_base>> get_params() const { return _params; }
+
+    bool is_assignable_to(const rt_type_base &other) const override;
+    bool equals(const rt_type_base &other) const override;
 };
 
 class rt_type_ref final : public rt_type_base {
@@ -106,8 +120,11 @@ class rt_type_ref final : public rt_type_base {
   public:
     rt_type_ref(std::shared_ptr<rt_type_base> inner) : rt_type_base(rt_type_kind::Reference), _inner(inner) {}
 
-    inline std::shared_ptr<rt_type_base> get_inner() { return _inner; }
-    std::string to_string() override { return "&" + _inner->to_string(); }
+    inline std::shared_ptr<rt_type_base> get_inner() const { return _inner; }
+    std::string to_string() const override { return "&" + _inner->to_string(); }
+
+    bool is_assignable_to(const rt_type_base &other) const override;
+    bool equals(const rt_type_base &other) const override;
 };
 
 class rt_type_array final : public rt_type_base {
@@ -119,5 +136,11 @@ class rt_type_array final : public rt_type_base {
     rt_type_array(std::shared_ptr<rt_type_base> inner, std::uint32_t capacity)
         : rt_type_base(rt_type_kind::Array), _inner(inner), _capacity(capacity) {}
 
-    std::string to_string() override { return "[" + std::to_string(_capacity) + ":" + _inner->to_string() + "]"; }
+    std::string to_string() const override { return "[" + std::to_string(_capacity) + ":" + _inner->to_string() + "]"; }
+
+    inline std::shared_ptr<rt_type_base> get_inner() const { return _inner; }
+    inline std::uint32_t get_capacity() const { return _capacity; }
+
+    bool is_assignable_to(const rt_type_base &other) const override;
+    bool equals(const rt_type_base &other) const override;
 };
