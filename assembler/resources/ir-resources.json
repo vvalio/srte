@@ -1,0 +1,9 @@
+{
+    "output_file": "resources/core_ir_data.hpp",
+    "resources": [
+        {
+            "path": "../runtime/assembler-support/strdefs.ll",
+            "data_name": "strdefs_ir"
+        }
+    ]
+}

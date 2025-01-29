@@ -12,3 +12,4 @@ if r.returncode() != 0
 endif
 
 subdir('assembler')
+subdir('runtime')

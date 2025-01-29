@@ -3,3 +3,4 @@ assembler/parser/location.hh
 build
 .cache
 test/tests.log
+assembler/resources/*.hpp

@@ -35,6 +35,19 @@ cpp_args = [
     '-std=c++17',
 ]
 
+ir_res_files = [
+    'resources/ir-resources.json',
+]
+
+python_exe = find_program('python3', 'python')
+params = [meson.project_source_root() / 'build-aux/rc-comp.py'] + ir_res_files
+
+message('Generating assembler resource header...')
+r = run_command(python_exe, params, check: true)
+if r.returncode() != 0
+    error(r.stderr())
+endif
+
 executable(
     'assrte',
     sources: sources,
