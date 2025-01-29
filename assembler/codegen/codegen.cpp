@@ -3,11 +3,11 @@
 #include "codegen/mangle.hpp"
 #include "codegencontext.hpp"
 #include "llvmtype.hpp"
-#include <llvm-18/llvm/IR/GlobalValue.h>
 #include <llvm/ADT/APInt.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>

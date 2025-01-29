@@ -44,9 +44,38 @@ static SrStr SrCreateUtf16Str(uint32_t len, uint16_t *bytes, uint8_t is_be) {
     return (SrStr){.bytes = TAKE_N(uint8_t, utf8_len, dst_buf), .len = len};
 }
 
-static SrStr SrCreateUtf32Str(uint32_t len, uint32_t *bytes) { return (SrStr){0}; }
+static SrStr SrCreateUtf32Str(uint32_t len, uint32_t *bytes) {
+    // Again, pre-flight the string length
+    int32_t utf16_len;
+    UErrorCode errc;
+    u_strFromUTF32(NULL, 0, &utf16_len, (const UChar32 *)bytes, len, &errc);
+
+    if (!U_SUCCESS(errc) || errc != U_BUFFER_OVERFLOW_ERROR) {
+        fprintf(stderr, "Error transforming UTF-32: %s\n", u_errorName(errc));
+        abort();
+    } else {
+        errc = U_ZERO_ERROR;
+    }
+
+    // Now transform to UTF-16
+    UChar *dst_buf = malloc(sizeof(UChar) * utf16_len);
+    int32_t real_utf16_len; // since passing to CreateUtf16Str
+    u_strFromUTF32(dst_buf, utf16_len, &real_utf16_len, (const UChar32 *)bytes, len, &errc);
+
+    // Do another check since another conversion will come
+    if (!U_SUCCESS(errc) || errc != U_BUFFER_OVERFLOW_ERROR) {
+        fprintf(stderr, "Error transforming UTF-32: %s\n", u_errorName(errc));
+        abort();
+    } else {
+        errc = U_ZERO_ERROR;
+    }
+
+    // Now make the 16 -> 8 transformation
+    return SrCreateUtf16Str(real_utf16_len, dst_buf, 0);
+}
 
 /* Internal defintions as specified in strdefs.ll */
-SR_STRONG_ALIAS(SrStr, _SrCreateUtf32Str_, "SrCreateUtf32Str", uint32_t len, uint32_t *bytes);
-SR_STRONG_ALIAS(SrStr, _SrCreateUtf16Str_, "SrCreateUtf16Str", uint32_t len, uint16_t *bytes, uint8_t is_be);
-SR_STRONG_ALIAS(SrStr, _SrCreateUtf8Str_, "SrCreateUtf8Str", uint32_t len, uint8_t *bytes);
+
+SR_STRONG_ALIAS(SrStr, _SrCreateUtf32Str_, SrCreateUtf32Str, uint32_t len, uint32_t *bytes);
+SR_STRONG_ALIAS(SrStr, _SrCreateUtf16Str_, SrCreateUtf16Str, uint32_t len, uint16_t *bytes, uint8_t is_be);
+SR_STRONG_ALIAS(SrStr, _SrCreateUtf8Str_, SrCreateUtf8Str, uint32_t len, uint8_t *bytes);
