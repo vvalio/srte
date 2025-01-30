@@ -19,18 +19,7 @@ static llvm::Type *get_basic_type(std::shared_ptr<codegen_ctx> ctx, const rt_typ
         case rt_type_kind::U128: return llvm::IntegerType::get(ctx->llctx, 128);
         case rt_type_kind::Bool: return llvm::IntegerType::get(ctx->llctx, 1);
         case rt_type_kind::Void: return llvm::Type::getVoidTy(ctx->llctx);
-        case rt_type_kind::String: {
-            if (auto str_typ = llvm::StructType::getTypeByName(ctx->llctx, STRING_TYP); str_typ != nullptr) {
-                return str_typ;
-            }
-
-            return llvm::StructType::create(ctx->llctx,
-                                            {
-                                                llvm::IntegerType::get(ctx->llctx, 32),
-                                                llvm::IntegerType::get(ctx->llctx, 8)->getPointerTo(),
-                                            },
-                                            STRING_TYP, false);
-        }
+        case rt_type_kind::String: return ctx->clib->get_srte_str();
 
         default: break;
     }

@@ -1,5 +1,6 @@
 core_rt_sources = [
     'srte_string.c',
+    'own.c',
 ]
 
 core_rt_deps = [

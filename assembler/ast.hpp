@@ -160,7 +160,7 @@ class str_literal : public literal_base {
     str_literal(std::shared_ptr<ast_location> l, const std::string &vstr, encoding fmt, std::vector<unsigned char> data)
         : literal_base(l, vstr), _fmt(fmt), _data(data) {}
 
-    inline encoding get_encoding() { return _fmt; }
+    inline encoding get_encoding() const { return _fmt; }
     inline std::vector<unsigned char> get_data() { return _data; }
     inline kind get_kind() const override { return kind::Str; }
     std::vector<std::shared_ptr<ast_base>> get_children() override { return {}; }

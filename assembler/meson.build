@@ -9,6 +9,7 @@ sources = [
     'codegen/codegencontext.cpp',
     'codegen/llvmtype.cpp',
     'codegen/mangle.cpp',
+    'runtime-support/corelib.cpp',
     'scanner/fastscanner.cpp',
     'parser/srte-asm-parser.cpp',
     'parser/drv/drv.cpp',
@@ -36,7 +37,6 @@ cpp_args = [
 ]
 
 ir_res_files = [
-    'resources/ir-resources.json',
 ]
 
 python_exe = find_program('python3', 'python')
